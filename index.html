@@ -2299,90 +2299,142 @@ function goHome(){
 async function createOrder(){
 
   if(!currentUser){
-
-    toast(
-      'Please login first.'
-    );
-
+    toast('Please login first.');
     return;
   }
 
+  const amount = Number($('usdt').value || 0);
 
-  const amount =
-    Number(
-      $('usdt').value || 0
-    );
-
-
-  if(!amount || amount <= 0){
-
-    toast(
-      'Enter USDT amount.'
-    );
-
+  if(!Number.isFinite(amount) || amount <= 0){
+    toast('Enter a valid USDT amount.');
     return;
   }
 
+  const button = document.querySelector(
+    '#paymentCard .buy'
+  );
+
+  if(button){
+    button.disabled = true;
+    button.textContent = 'Creating Order...';
+  }
 
   try{
 
-    const {
-      data,
-      error
-    } =
+    const { data, error } =
       await sb.functions.invoke(
         'create-order',
         {
-          body:{
-            amount_usdt:amount
+          body: {
+            amount_usdt: amount
           }
         }
       );
 
+    console.log('CREATE ORDER DATA:', data);
+    console.log('CREATE ORDER ERROR:', error);
 
+    /*
+      Supabase Functions can return the real
+      backend error inside error.context.
+    */
     if(error){
 
+      let realMessage = error.message ||
+        'Unable to create payment order.';
+
+      try{
+
+        if(error.context){
+
+          const response =
+            error.context.clone
+              ? error.context.clone()
+              : error.context;
+
+          if(response && typeof response.json === 'function'){
+
+            const backend =
+              await response.json();
+
+            console.error(
+              'EDGE FUNCTION RESPONSE:',
+              backend
+            );
+
+            if(backend && backend.error){
+              realMessage =
+                backend.error;
+            }
+
+          }
+        }
+
+      }catch(parseError){
+
+        console.error(
+          'ERROR RESPONSE PARSE:',
+          parseError
+        );
+
+      }
+
+      toast(realMessage);
+
       console.error(
-        'CREATE ORDER ERROR:',
-        error
-      );
-
-      toast(
-        error.message ||
-        'Unable to create order.'
+        'REAL CREATE-ORDER ERROR:',
+        realMessage
       );
 
       return;
     }
 
-
-    if(!data || !data.order){
+    if(!data){
 
       toast(
-        'Order creation failed.'
+        'No response received from create-order.'
       );
 
       return;
     }
 
+    if(!data.order){
+
+      toast(
+        data.error ||
+        'Order was not created.'
+      );
+
+      console.error(
+        'INVALID ORDER RESPONSE:',
+        data
+      );
+
+      return;
+    }
+
+    /*
+      Order successfully created.
+    */
 
     currentOrder =
       data.order;
-
 
     renderPayment(
       data.order
     );
 
-
     modal(
       '💵',
       'Payment Order Created',
       'Send exactly ' +
-      amount.toFixed(6) +
-      ' USDT on TRON to the displayed address.'
+      Number(
+        data.order.amount_usdt
+      ).toFixed(6) +
+      ' USDT on TRON (TRC20) to the displayed address.'
     );
 
+    await loadOrders();
 
   }catch(error){
 
@@ -2393,11 +2445,19 @@ async function createOrder(){
 
     toast(
       error.message ||
-      'Payment order error.'
+      'Payment order failed.'
     );
+
+  }finally{
+
+    if(button){
+      button.disabled = false;
+      button.textContent =
+        'Create USDT Payment';
+    }
+
   }
 }
-
 
 /* ==========================================
    RENDER PAYMENT
