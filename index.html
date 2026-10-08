@@ -3480,151 +3480,320 @@ function updateChartHeader(price){
 }
 
 
-/* ------------------------------------------
-   SIMULATE NEW CANDLE
------------------------------------------- */
+/* ==========================================
+   SFC REAL-TIME STYLE CANDLE TIMING
+   SIMULATED / DEMO MARKET DATA
+========================================== */
 
-function updateCandle(){
+const canvas = $('chart');
+const ctx = canvas.getContext('2d');
 
-  if(!candles.length)
-    return;
+let currentTimeframe = '1m';
+let basePrice = PRICE;
+let candles = [];
 
+let candleTimer = null;
+let priceTimer = null;
 
-  const last =
-    candles[
-      candles.length - 1
-    ];
-
-
-  const open =
-    last.close;
+let currentCandleStart = 0;
 
 
-  const volatility =
-    currentTimeframe === '1m'
-      ? 0.002
-      : currentTimeframe === '5m'
-      ? 0.003
-      : currentTimeframe === '15m'
-      ? 0.004
-      : currentTimeframe === '1H'
-      ? 0.006
-      : 0.008;
+/* ==========================================
+   TIMEFRAME DURATION
+========================================== */
+
+const TIMEFRAME_MS = {
+  '1m': 60 * 1000,
+  '5m': 5 * 60 * 1000,
+  '15m': 15 * 60 * 1000,
+  '1H': 60 * 60 * 1000,
+  '4H': 4 * 60 * 60 * 1000
+};
 
 
-  const close =
-    Math.max(
-      0.001,
-      open +
-      (
-        Math.random() -
-        0.48
-      ) *
-      volatility
-    );
+/* ==========================================
+   CREATE INITIAL CANDLES
+========================================== */
+
+function createCandles(){
+
+  candles = [];
+
+  let price = basePrice;
+
+  const duration =
+    TIMEFRAME_MS[currentTimeframe];
+
+  const now = Date.now();
+
+  /*
+    Initial candles are historical/demo candles.
+    They are spaced according to selected timeframe.
+  */
+
+  for(let i = 42; i > 0; i--){
+
+    const open = price;
+
+    const volatility =
+      currentTimeframe === '1m' ? 0.002 :
+      currentTimeframe === '5m' ? 0.003 :
+      currentTimeframe === '15m' ? 0.004 :
+      currentTimeframe === '1H' ? 0.006 :
+      0.008;
+
+    const close =
+      Math.max(
+        0.001,
+        open +
+        (Math.random() - 0.48) * volatility
+      );
+
+    const high =
+      Math.max(open, close) +
+      Math.random() * volatility;
+
+    const low =
+      Math.min(open, close) -
+      Math.random() * volatility;
+
+    candles.push({
+      open,
+      high,
+      low,
+      close,
+      start:
+        now - (i * duration),
+      end:
+        now - ((i - 1) * duration)
+    });
+
+    price = close;
+  }
 
 
-  const high =
-    Math.max(open,close) +
-    Math.random() *
-    volatility;
+  /*
+    Make latest candle the current live candle.
+  */
+
+  const latest = candles[candles.length - 1];
+
+  currentCandleStart =
+    Math.floor(now / duration) * duration;
+
+  latest.start = currentCandleStart;
+  latest.end =
+    currentCandleStart + duration;
+
+  latest.open = latest.close;
+
+  drawChart();
+}
 
 
-  const low =
-    Math.min(open,close) -
-    Math.random() *
-    volatility;
+/* ==========================================
+   UPDATE CURRENT CANDLE
+   Does NOT create a new candle
+========================================== */
+
+function updateCurrentCandle(){
+
+  if(!candles.length) return;
+
+  const now = Date.now();
+
+  const duration =
+    TIMEFRAME_MS[currentTimeframe];
+
+  const currentStart =
+    Math.floor(now / duration) * duration;
 
 
-  candles.push({
+  /*
+    Only create a NEW candle if the
+    current timeframe has actually finished.
+  */
 
-    open: open,
+  if(currentStart !== currentCandleStart){
 
-    high: high,
+    const previous =
+      candles[candles.length - 1];
 
-    low: low,
+    /*
+      Start new candle from previous close.
+    */
 
-    close: close
+    const open = previous.close;
 
-  });
+    const volatility =
+      currentTimeframe === '1m' ? 0.002 :
+      currentTimeframe === '5m' ? 0.003 :
+      currentTimeframe === '15m' ? 0.004 :
+      currentTimeframe === '1H' ? 0.006 :
+      0.008;
+
+    const close =
+      Math.max(
+        0.001,
+        open +
+        (Math.random() - 0.48) * volatility
+      );
+
+    const high =
+      Math.max(open, close) +
+      Math.random() * volatility;
+
+    const low =
+      Math.min(open, close) -
+      Math.random() * volatility;
 
 
-  if(candles.length > 42){
+    candles.push({
+      open,
+      high,
+      low,
+      close,
+      start: currentStart,
+      end: currentStart + duration
+    });
 
-    candles.shift();
+
+    /*
+      Keep only last 42 candles.
+    */
+
+    if(candles.length > 42){
+      candles.shift();
+    }
+
+
+    currentCandleStart = currentStart;
+
+  }else{
+
+    /*
+      SAME candle:
+      update its price.
+    */
+
+    const candle =
+      candles[candles.length - 1];
+
+    const volatility =
+      currentTimeframe === '1m' ? 0.0007 :
+      currentTimeframe === '5m' ? 0.001 :
+      currentTimeframe === '15m' ? 0.0015 :
+      currentTimeframe === '1H' ? 0.002 :
+      0.003;
+
+
+    const newClose =
+      Math.max(
+        0.001,
+        candle.close +
+        (Math.random() - 0.48) * volatility
+      );
+
+
+    candle.close = newClose;
+
+    candle.high =
+      Math.max(
+        candle.high,
+        newClose
+      );
+
+    candle.low =
+      Math.min(
+        candle.low,
+        newClose
+      );
 
   }
 
 
   drawChart();
-
 }
 
 
-/* ------------------------------------------
-   TIMEFRAME
------------------------------------------- */
+/* ==========================================
+   TIMEFRAME BUTTON
+========================================== */
 
-function setTimeframe(
-  timeframe,
-  button
-){
+function setTimeframe(timeframe, button){
 
-  currentTimeframe =
-    timeframe;
+  currentTimeframe = timeframe;
 
 
   document
     .querySelectorAll('.tf')
     .forEach(btn => {
-
-      btn.classList
-        .remove('active');
-
+      btn.classList.remove('active');
     });
 
 
   if(button){
-
-    button.classList
-      .add('active');
-
+    button.classList.add('active');
   }
 
 
+  /*
+    Stop previous timers.
+  */
+
+  clearInterval(candleTimer);
+  clearInterval(priceTimer);
+
+
+  /*
+    Recreate candles for new timeframe.
+  */
+
   createCandles();
 
-  drawChart();
+
+  /*
+    Price updates every 2 seconds.
+    This updates the CURRENT candle only.
+  */
+
+  priceTimer = setInterval(
+    updateCurrentCandle,
+    2000
+  );
+
+
+  /*
+    Additional check every second.
+    This checks whether the timeframe
+    has completed.
+
+    It does NOT create a candle every second.
+  */
+
+  candleTimer = setInterval(
+    updateCurrentCandle,
+    1000
+  );
 
 }
 
 
-/* ------------------------------------------
+/* ==========================================
    RESIZE
------------------------------------------- */
+========================================== */
 
 function resize(){
 
-  if(!canvas)
-    return;
-
+  if(!canvas) return;
 
   const rect =
     canvas.getBoundingClientRect();
 
-
-  if(
-    !rect.width ||
-    !rect.height
-  ){
-    return;
-  }
-
+  if(!rect.width || !rect.height) return;
 
   const dpr =
-    window.devicePixelRatio ||
-    1;
-
+    window.devicePixelRatio || 1;
 
   canvas.width =
     rect.width * dpr;
@@ -3644,7 +3813,6 @@ function resize(){
 
 
   drawChart();
-
 }
 
 
@@ -3654,9 +3822,9 @@ window.addEventListener(
 );
 
 
-/* ------------------------------------------
+/* ==========================================
    START CHART
------------------------------------------- */
+========================================== */
 
 createCandles();
 
@@ -3667,18 +3835,13 @@ setTimeout(
 
 
 /*
-  New simulated candle every 3 seconds.
+  Start live simulation.
 */
 
-clearInterval(
-  chartTimer
+setTimeframe(
+  '1m',
+  document.querySelector('.tf.active')
 );
-
-chartTimer =
-  setInterval(
-    updateCandle,
-    3000
-  );
 
 
 /* ==========================================
