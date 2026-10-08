@@ -362,7 +362,84 @@ canvas{
   width:100%;
   height:100%
 }
+.chartWrap{
+  width:100%;
+}
 
+.chartTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+  flex-wrap:wrap;
+}
+
+.chartPrice{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.chartPrice span{
+  font-size:17px;
+  font-weight:900;
+}
+
+.chartPrice small{
+  font-size:10px;
+  color:#35e29a;
+  font-weight:800;
+}
+
+.chartTimeframes{
+  display:flex;
+  gap:4px;
+  background:#07121f;
+  padding:4px;
+  border-radius:9px;
+}
+
+.tf{
+  padding:6px 8px;
+  border-radius:6px;
+  background:transparent;
+  color:#71869c;
+  font-size:9px;
+  font-weight:800;
+}
+
+.tf.active{
+  background:#17324d;
+  color:#4de1ff;
+}
+
+.chartBottom{
+  display:flex;
+  justify-content:space-between;
+  margin-top:7px;
+  color:#60758b;
+  font-size:8px;
+}
+
+.chartBottom span:first-child{
+  color:#71869c;
+}
+
+@media(max-width:500px){
+  .chartTop{
+    align-items:flex-start;
+  }
+
+  .chartTimeframes{
+    width:100%;
+    justify-content:space-between;
+  }
+
+  .tf{
+    flex:1;
+  }
+}
 .price{
   font-size:29px;
   font-weight:900
