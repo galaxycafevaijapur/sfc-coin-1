@@ -3503,11 +3503,11 @@ let currentCandleStart = 0;
 ========================================== */
 
 const TIMEFRAME_MS = {
-  '1m': 60 * 1000,
-  '5m': 5 * 60 * 1000,
-  '15m': 15 * 60 * 1000,
-  '1H': 60 * 60 * 1000,
-  '4H': 4 * 60 * 60 * 1000
+  '1m': 60 * 6000,
+  '5m': 5 * 60 * 6000,
+  '15m': 15 * 60 * 6000,
+  '1H': 60 * 60 * 6000,
+  '4H': 4 * 60 * 60 * 6000
 };
 
 
@@ -3659,10 +3659,10 @@ function updateCurrentCandle(){
 
 
     /*
-      Keep only last 42 candles.
+      Keep only last 49 candles.
     */
 
-    if(candles.length > 42){
+    if(candles.length > 49){
       candles.shift();
     }
 
@@ -3753,13 +3753,13 @@ function setTimeframe(timeframe, button){
 
 
   /*
-    Price updates every 2 seconds.
+    Price updates every 60 seconds.
     This updates the CURRENT candle only.
   */
 
   priceTimer = setInterval(
     updateCurrentCandle,
-    2000
+  60000
   );
 
 
