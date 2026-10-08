@@ -2893,25 +2893,638 @@ function withdrawComingSoon(){
 
 
 /* ==========================================
-   CHART
+   SFC CANDLESTICK CHART
+   SIMULATED / DEMO MARKET DATA
 ========================================== */
 
-const chartData = [
-  40,44,42,48,46,
-  53,50,57,55,63,
-  60,66,64,71,69,
-  76,73,81,78,85,
-  82,89,86,94,91,
-  99,96,104,101,110
-];
+const canvas = $('chart');
+const ctx = canvas.getContext('2d');
+
+let currentTimeframe = '1m';
+
+let basePrice = PRICE;
+
+let candles = [];
+
+let chartTimer = null;
 
 
-const canvas =
-  $('chart');
+/* ------------------------------------------
+   CREATE INITIAL CANDLES
+------------------------------------------ */
 
-const ctx =
-  canvas.getContext('2d');
+function createCandles(){
 
+  candles = [];
+
+  let price = basePrice;
+
+  for(let i = 0; i < 42; i++){
+
+    const open = price;
+
+    const movement =
+      (
+        Math.random() - 0.46
+      ) * 0.006;
+
+    let close =
+      open + movement;
+
+    if(close <= 0.001){
+      close = open;
+    }
+
+    const high =
+      Math.max(open,close) +
+      Math.random() * 0.003;
+
+    const low =
+      Math.min(open,close) -
+      Math.random() * 0.003;
+
+    candles.push({
+      open: open,
+      high: high,
+      low: low,
+      close: close
+    });
+
+    price = close;
+  }
+
+  /*
+    Keep final simulated price
+    close to displayed SFC price.
+  */
+
+  const finalPrice =
+    candles[candles.length - 1].close;
+
+  const correction =
+    basePrice / finalPrice;
+
+  candles =
+    candles.map(c => ({
+      open: c.open * correction,
+      high: c.high * correction,
+      low: c.low * correction,
+      close: c.close * correction
+    }));
+
+}
+
+
+/* ------------------------------------------
+   DRAW GRID
+------------------------------------------ */
+
+function drawGrid(w,h){
+
+  ctx.strokeStyle =
+    'rgba(255,255,255,.055)';
+
+  ctx.lineWidth = 1;
+
+  const horizontal = 5;
+  const vertical = 7;
+
+  for(let i=1;i<horizontal;i++){
+
+    const y =
+      (h / horizontal) * i;
+
+    ctx.beginPath();
+
+    ctx.moveTo(0,y);
+
+    ctx.lineTo(w,y);
+
+    ctx.stroke();
+  }
+
+  for(let i=1;i<vertical;i++){
+
+    const x =
+      (w / vertical) * i;
+
+    ctx.beginPath();
+
+    ctx.moveTo(x,0);
+
+    ctx.lineTo(x,h);
+
+    ctx.stroke();
+  }
+}
+
+
+/* ------------------------------------------
+   DRAW CANDLESTICKS
+------------------------------------------ */
+
+function drawChart(){
+
+  if(
+    !canvas ||
+    !canvas.offsetWidth ||
+    !canvas.offsetHeight
+  ){
+    return;
+  }
+
+  const w =
+    canvas.offsetWidth;
+
+  const h =
+    canvas.offsetHeight;
+
+  ctx.clearRect(
+    0,
+    0,
+    w,
+    h
+  );
+
+  drawGrid(w,h);
+
+
+  if(!candles.length)
+    return;
+
+
+  const paddingLeft = 10;
+  const paddingRight = 55;
+  const paddingTop = 12;
+  const paddingBottom = 16;
+
+
+  const chartW =
+    w -
+    paddingLeft -
+    paddingRight;
+
+  const chartH =
+    h -
+    paddingTop -
+    paddingBottom;
+
+
+  const highs =
+    candles.map(c => c.high);
+
+  const lows =
+    candles.map(c => c.low);
+
+
+  let max =
+    Math.max(...highs);
+
+  let min =
+    Math.min(...lows);
+
+
+  const range =
+    max - min || 0.001;
+
+
+  max += range * 0.08;
+  min -= range * 0.08;
+
+
+  function priceY(price){
+
+    return (
+      paddingTop +
+      (
+        (max - price) /
+        (max - min)
+      ) *
+      chartH
+    );
+
+  }
+
+
+  const gap = 3;
+
+  const candleWidth =
+    Math.max(
+      3,
+      (
+        chartW /
+        candles.length
+      ) - gap
+    );
+
+
+  candles.forEach(
+    (candle,index) => {
+
+      const centerX =
+        paddingLeft +
+        (
+          index + 0.5
+        ) *
+        (
+          chartW /
+          candles.length
+        );
+
+
+      const openY =
+        priceY(candle.open);
+
+      const closeY =
+        priceY(candle.close);
+
+      const highY =
+        priceY(candle.high);
+
+      const lowY =
+        priceY(candle.low);
+
+
+      const bullish =
+        candle.close >= candle.open;
+
+
+      const bodyTop =
+        Math.min(
+          openY,
+          closeY
+        );
+
+      const bodyBottom =
+        Math.max(
+          openY,
+          closeY
+        );
+
+
+      const bodyHeight =
+        Math.max(
+          2,
+          bodyBottom - bodyTop
+        );
+
+
+      /*
+        Wick
+      */
+
+      ctx.beginPath();
+
+      ctx.moveTo(
+        centerX,
+        highY
+      );
+
+      ctx.lineTo(
+        centerX,
+        lowY
+      );
+
+      ctx.strokeStyle =
+        bullish
+          ? '#35e29a'
+          : '#ff5575';
+
+      ctx.lineWidth = 1;
+
+      ctx.stroke();
+
+
+      /*
+        Candle body
+      */
+
+      ctx.fillStyle =
+        bullish
+          ? '#35e29a'
+          : '#ff5575';
+
+
+      ctx.fillRect(
+        centerX -
+        candleWidth / 2,
+
+        bodyTop,
+
+        candleWidth,
+
+        bodyHeight
+      );
+
+    }
+  );
+
+
+  /*
+    Current price
+  */
+
+  const latest =
+    candles[
+      candles.length - 1
+    ].close;
+
+
+  const currentY =
+    priceY(latest);
+
+
+  ctx.setLineDash([
+    4,
+    4
+  ]);
+
+  ctx.strokeStyle =
+    'rgba(77,163,255,.65)';
+
+  ctx.beginPath();
+
+  ctx.moveTo(
+    paddingLeft,
+    currentY
+  );
+
+  ctx.lineTo(
+    w - paddingRight,
+    currentY
+  );
+
+  ctx.stroke();
+
+  ctx.setLineDash([]);
+
+
+  /*
+    Price label
+  */
+
+  const priceLabel =
+    '$' +
+    latest.toFixed(6);
+
+
+  ctx.fillStyle =
+    '#4d8cff';
+
+  ctx.fillRect(
+    w - paddingRight + 3,
+    currentY - 9,
+    52,
+    18
+  );
+
+
+  ctx.fillStyle =
+    '#fff';
+
+  ctx.font =
+    'bold 8px Arial';
+
+  ctx.textAlign =
+    'center';
+
+  ctx.textBaseline =
+    'middle';
+
+  ctx.fillText(
+    priceLabel,
+    w - paddingRight + 29,
+    currentY
+  );
+
+
+  /*
+    Price scale
+  */
+
+  ctx.textAlign =
+    'left';
+
+  ctx.font =
+    '8px Arial';
+
+  ctx.fillStyle =
+    '#657b91';
+
+
+  for(let i=0;i<5;i++){
+
+    const price =
+      max -
+      (
+        (max-min) /
+        4
+      ) * i;
+
+    const y =
+      priceY(price);
+
+    ctx.fillText(
+      '$' + price.toFixed(4),
+      w - paddingRight + 5,
+      y + 3
+    );
+  }
+
+
+  updateChartHeader(latest);
+}
+
+
+/* ------------------------------------------
+   UPDATE PRICE HEADER
+------------------------------------------ */
+
+function updateChartHeader(price){
+
+  if($('chartPrice')){
+
+    $('chartPrice')
+      .textContent =
+      '$' +
+      price.toFixed(6);
+
+  }
+
+
+  if($('chartChange')){
+
+    const first =
+      candles[0]?.open ||
+      price;
+
+    const change =
+      (
+        (price-first) /
+        first
+      ) * 100;
+
+
+    $('chartChange')
+      .textContent =
+      (
+        change >= 0
+          ? '+'
+          : ''
+      ) +
+      change.toFixed(2) +
+      '%';
+
+    $('chartChange')
+      .style.color =
+        change >= 0
+          ? '#35e29a'
+          : '#ff5575';
+
+  }
+
+
+  if($('chartTime')){
+
+    $('chartTime')
+      .textContent =
+      new Date()
+        .toLocaleTimeString(
+          [],
+          {
+            hour:'2-digit',
+            minute:'2-digit',
+            second:'2-digit'
+          }
+        );
+
+  }
+
+}
+
+
+/* ------------------------------------------
+   SIMULATE NEW CANDLE
+------------------------------------------ */
+
+function updateCandle(){
+
+  if(!candles.length)
+    return;
+
+
+  const last =
+    candles[
+      candles.length - 1
+    ];
+
+
+  const open =
+    last.close;
+
+
+  const volatility =
+    currentTimeframe === '1m'
+      ? 0.002
+      : currentTimeframe === '5m'
+      ? 0.003
+      : currentTimeframe === '15m'
+      ? 0.004
+      : currentTimeframe === '1H'
+      ? 0.006
+      : 0.008;
+
+
+  const close =
+    Math.max(
+      0.001,
+      open +
+      (
+        Math.random() -
+        0.48
+      ) *
+      volatility
+    );
+
+
+  const high =
+    Math.max(open,close) +
+    Math.random() *
+    volatility;
+
+
+  const low =
+    Math.min(open,close) -
+    Math.random() *
+    volatility;
+
+
+  candles.push({
+
+    open: open,
+
+    high: high,
+
+    low: low,
+
+    close: close
+
+  });
+
+
+  if(candles.length > 42){
+
+    candles.shift();
+
+  }
+
+
+  drawChart();
+
+}
+
+
+/* ------------------------------------------
+   TIMEFRAME
+------------------------------------------ */
+
+function setTimeframe(
+  timeframe,
+  button
+){
+
+  currentTimeframe =
+    timeframe;
+
+
+  document
+    .querySelectorAll('.tf')
+    .forEach(btn => {
+
+      btn.classList
+        .remove('active');
+
+    });
+
+
+  if(button){
+
+    button.classList
+      .add('active');
+
+  }
+
+
+  createCandles();
+
+  drawChart();
+
+}
+
+
+/* ------------------------------------------
+   RESIZE
+------------------------------------------ */
 
 function resize(){
 
@@ -2926,12 +3539,14 @@ function resize(){
   if(
     !rect.width ||
     !rect.height
-  )
+  ){
     return;
+  }
 
 
   const dpr =
-    window.devicePixelRatio || 1;
+    window.devicePixelRatio ||
+    1;
 
 
   canvas.width =
@@ -2952,158 +3567,7 @@ function resize(){
 
 
   drawChart();
-}
 
-
-function drawChart(){
-
-  if(
-    !canvas ||
-    !canvas.offsetWidth
-  )
-    return;
-
-
-  const w =
-    canvas.offsetWidth;
-
-  const h =
-    canvas.offsetHeight;
-
-  const p = 18;
-
-
-  const min =
-    Math.min(
-      ...chartData
-    ) - 8;
-
-
-  const max =
-    Math.max(
-      ...chartData
-    ) + 8;
-
-
-  const points =
-    chartData.map(
-      (value,index) => {
-
-        return {
-
-          x:
-            p +
-            (
-              index /
-              (chartData.length - 1)
-            ) *
-            (
-              w - p * 2
-            ),
-
-          y:
-            h -
-            p -
-            (
-              (
-                value - min
-              ) /
-              (
-                max - min
-              )
-            ) *
-            (
-              h - p * 2
-            )
-        };
-
-      }
-    );
-
-
-  ctx.clearRect(
-    0,
-    0,
-    w,
-    h
-  );
-
-
-  const line =
-    ctx.createLinearGradient(
-      0,
-      0,
-      w,
-      0
-    );
-
-
-  line.addColorStop(
-    0,
-    '#20e0ff'
-  );
-
-  line.addColorStop(
-    1,
-    '#4d8cff'
-  );
-
-
-  ctx.beginPath();
-
-
-  points.forEach(
-    (point,index) => {
-
-      if(index === 0){
-
-        ctx.moveTo(
-          point.x,
-          point.y
-        );
-
-      }else{
-
-        ctx.lineTo(
-          point.x,
-          point.y
-        );
-      }
-
-    }
-  );
-
-
-  ctx.strokeStyle =
-    line;
-
-  ctx.lineWidth =
-    3;
-
-  ctx.stroke();
-
-
-  const last =
-    points[
-      points.length - 1
-    ];
-
-
-  ctx.fillStyle =
-    '#20e0ff';
-
-
-  ctx.beginPath();
-
-  ctx.arc(
-    last.x,
-    last.y,
-    4,
-    0,
-    Math.PI * 2
-  );
-
-  ctx.fill();
 }
 
 
@@ -3111,6 +3575,33 @@ window.addEventListener(
   'resize',
   resize
 );
+
+
+/* ------------------------------------------
+   START CHART
+------------------------------------------ */
+
+createCandles();
+
+setTimeout(
+  resize,
+  150
+);
+
+
+/*
+  New simulated candle every 3 seconds.
+*/
+
+clearInterval(
+  chartTimer
+);
+
+chartTimer =
+  setInterval(
+    updateCandle,
+    3000
+  );
 
 
 /* ==========================================
